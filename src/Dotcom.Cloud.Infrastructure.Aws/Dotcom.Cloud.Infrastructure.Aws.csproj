@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Dotcom paved-road Pulumi components for AWS. Not implemented yet.</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Dotcom.Cloud.Infrastructure.Common\Dotcom.Cloud.Infrastructure.Common.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,48 @@
+name: Publish GitHub Packages
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: "10.0.x"
+
+    - name: Restore
+      run: dotnet restore Dotcom.Cloud.slnx
+
+    - name: Build
+      run: dotnet build Dotcom.Cloud.slnx --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test Dotcom.Cloud.slnx --configuration Release --no-build
+
+    - name: Pack
+      run: |
+        REPO_URL="https://github.com/${{ github.repository }}"
+        dotnet pack src/Dotcom.Cloud.Infrastructure.Common/Dotcom.Cloud.Infrastructure.Common.csproj \
+          --configuration Release --no-build -o out -p:RepositoryUrl="$REPO_URL"
+        dotnet pack src/Dotcom.Cloud.Infrastructure.Azure/Dotcom.Cloud.Infrastructure.Azure.csproj \
+          --configuration Release --no-build -o out -p:RepositoryUrl="$REPO_URL"
+
+    - name: Add GitHub Packages source
+      run: |
+        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+          --name github \
+          --username ${{ github.actor }} \
+          --password ${{ secrets.GITHUB_TOKEN }} \
+          --store-password-in-clear-text
+
+    - name: Push to GitHub Packages
+      run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source github --skip-duplicate

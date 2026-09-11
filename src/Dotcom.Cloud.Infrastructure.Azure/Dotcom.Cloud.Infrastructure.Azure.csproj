@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Dotcom paved-road Pulumi components for Azure.</Description>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Dotcom.Cloud.Infrastructure.Common\Dotcom.Cloud.Infrastructure.Common.csproj" />
+    <PackageReference Include="Pulumi.AzureNative" Version="3.27.0" />
+  </ItemGroup>
+</Project>

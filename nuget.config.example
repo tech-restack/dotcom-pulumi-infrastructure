@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copy into a workload repo as nuget.config.
+  Source is GitHub Packages for gladmanchikosha-restack.
+
+  Authenticate (do not commit the token):
+    export GITHUB_TOKEN=ghp_...
+    dotnet nuget update source github \
+      --username YOUR_GITHUB_USERNAME \
+      --password "$GITHUB_TOKEN" \
+      --store-password-in-clear-text
+-->
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="github" value="https://nuget.pkg.github.com/gladmanchikosha-restack/index.json" />
+  </packageSources>
+</configuration>

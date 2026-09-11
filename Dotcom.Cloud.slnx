@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/Dotcom.Cloud.Infrastructure.Common/Dotcom.Cloud.Infrastructure.Common.csproj" />
+  <Project Path="src/Dotcom.Cloud.Infrastructure.Azure/Dotcom.Cloud.Infrastructure.Azure.csproj" />
+  <Project Path="src/Dotcom.Cloud.Infrastructure.Aws/Dotcom.Cloud.Infrastructure.Aws.csproj" />
+  <Project Path="src/Dotcom.Cloud.Infrastructure.Gcp/Dotcom.Cloud.Infrastructure.Gcp.csproj" />
+  <Project Path="tests/Dotcom.Cloud.Tests/Dotcom.Cloud.Tests.csproj" />
+</Solution>
