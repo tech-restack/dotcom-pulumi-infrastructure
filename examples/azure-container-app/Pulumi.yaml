@@ -1,0 +1,3 @@
+name: example-azure-container-app
+runtime: dotnet
+description: OrgContainerEnvironment and OrgContainerApp (VNet-only ingress)

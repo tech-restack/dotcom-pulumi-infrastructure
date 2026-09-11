@@ -11,8 +11,16 @@ public class NamingConventionsTests
     }
 
     [Fact]
-    public void GetAcrName_strips_hyphens_and_stays_alphanumeric()
+    public void GetWindowsComputerName_is_alphanumeric_max_15()
     {
-        Assert.Equal("acrdevapppocdev", NamingConventions.GetAcrName("app-poc-dev", "dev"));
+        Assert.Equal("vmdevwebfronten", NamingConventions.GetWindowsComputerName("web-frontend", "dev"));
+    }
+
+    [Fact]
+    public void GetResourceName_vm_nic_disk_prefixes()
+    {
+        Assert.Equal("vm-dev-api", NamingConventions.GetResourceName("api", "dev", "vm"));
+        Assert.Equal("nic-dev-api", NamingConventions.GetResourceName("api", "dev", "nic"));
+        Assert.Equal("disk-dev-api", NamingConventions.GetResourceName("api", "dev", "disk"));
     }
 }

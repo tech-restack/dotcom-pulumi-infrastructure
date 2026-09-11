@@ -1,0 +1,3 @@
+name: example-azure-vnet
+runtime: dotnet
+description: OrgVnet with public, ACA-delegated private, and private-endpoint subnets

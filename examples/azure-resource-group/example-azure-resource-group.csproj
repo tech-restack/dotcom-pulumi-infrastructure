@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Dotcom.Cloud.Examples.AzureResourceGroup</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Dotcom.Cloud.Infrastructure.Azure\Dotcom.Cloud.Infrastructure.Azure.csproj" />
+  </ItemGroup>
+</Project>

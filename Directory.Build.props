@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>2.2.1</Version>
+    <Version>2.4.0</Version>
     <Authors>Dotcom Cloud Operations</Authors>
     <PackageOutputPath>$(MSBuildThisFileDirectory)nupkgs/</PackageOutputPath>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

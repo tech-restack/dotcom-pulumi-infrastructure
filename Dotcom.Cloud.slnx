@@ -4,4 +4,9 @@
   <Project Path="src/Dotcom.Cloud.Infrastructure.Aws/Dotcom.Cloud.Infrastructure.Aws.csproj" />
   <Project Path="src/Dotcom.Cloud.Infrastructure.Gcp/Dotcom.Cloud.Infrastructure.Gcp.csproj" />
   <Project Path="tests/Dotcom.Cloud.Tests/Dotcom.Cloud.Tests.csproj" />
+  <Project Path="examples/azure-linux-vm/example-azure-linux-vm.csproj" />
+  <Project Path="examples/azure-resource-group/example-azure-resource-group.csproj" />
+  <Project Path="examples/azure-vnet/example-azure-vnet.csproj" />
+  <Project Path="examples/azure-container-registry/example-azure-container-registry.csproj" />
+  <Project Path="examples/azure-container-app/example-azure-container-app.csproj" />
 </Solution>

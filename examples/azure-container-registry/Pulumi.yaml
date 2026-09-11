@@ -1,0 +1,3 @@
+name: example-azure-container-registry
+runtime: dotnet
+description: Private Premium ACR with private endpoint

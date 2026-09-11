@@ -8,7 +8,7 @@ Enterprise Pulumi component library for standardized, paved-road infrastructure 
 [![Security Scan](https://img.shields.io/badge/security%20scan-planned-lightgrey)](#security--cost-governance)
 
 **Release & Stack:**  
-[![NuGet](https://img.shields.io/badge/nuget-2.2.1-blue)](https://github.com/orgs/tech-restack/packages?repo_name=dotcom-pulumi-infrastructure)
+[![NuGet](https://img.shields.io/badge/nuget-2.3.0-blue)](https://github.com/orgs/tech-restack/packages?repo_name=dotcom-pulumi-infrastructure)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/download/dotnet/10.0)
 [![Pulumi](https://img.shields.io/badge/Pulumi-IaC-8a3391)](https://www.pulumi.com/)
 
@@ -44,8 +44,8 @@ Local development and isolated tests may use the **local file backend** or **Pul
 
 | Package | Status | Distributed |
 | --- | --- | --- |
-| `Dotcom.Cloud.Infrastructure.Common` | Naming, CAF tags, org-owned tag merge | Yes (`2.2.1`) |
-| `Dotcom.Cloud.Infrastructure.Azure` | Resource Group, VNet, ACR, Container Apps | Yes (`2.2.1`) |
+| `Dotcom.Cloud.Infrastructure.Common` | Naming, CAF tags, org-owned tag merge | Yes (`2.3.0`) |
+| `Dotcom.Cloud.Infrastructure.Azure` | Resource Group, VNet, ACR, Container Apps, Virtual Machine | Yes (`2.3.0`) |
 | `Dotcom.Cloud.Infrastructure.Aws` | Placeholder | No (`IsPackable=false`) |
 | `Dotcom.Cloud.Infrastructure.Gcp` | Placeholder | No (`IsPackable=false`) |
 
@@ -76,10 +76,20 @@ dotcom-pulumi-infrastructure/
 │   │   ├── Core/Vnet/                    # OrgVnet, NSG baselines
 │   │   ├── Containers/Registry/          # OrgContainerRegistry (private Premium ACR)
 │   │   ├── Compute/ContainerApp/         # OrgContainerEnvironment, OrgContainerApp
+│   │   ├── Compute/VirtualMachine/       # OrgVirtualMachine
 │   │   └── Web/AppService/               # stub until a workload requires App Service
 │   ├── Dotcom.Cloud.Infrastructure.Aws/  # not implemented; not packed
-│   └── Dotcom.Cloud.Infrastructure.Gcp/  # not implemented; not packed
-└── tests/Dotcom.Cloud.Tests/             # xUnit: naming and CAF tag behaviour
+│   ├── Dotcom.Cloud.Infrastructure.Gcp/  # not implemented; not packed
+├── tests/Dotcom.Cloud.Tests/             # xUnit: naming and CAF tag behaviour
+└── examples/
+    ├── azure-resource-group/             # OrgResourceGroup
+    ├── azure-vnet/                       # OrgVnet
+    ├── azure-container-registry/         # OrgContainerRegistry
+    ├── azure-container-app/              # OrgContainerEnvironment + OrgContainerApp
+    ├── azure-linux-vm/                   # OrgVirtualMachine
+    ├── azure-app-service/                # stub (component not implemented)
+    ├── aws/                              # placeholder
+    └── gcp/                              # placeholder
 ```
 
 `nupkgs/` is the local pack output directory. It is gitignored. CI publishes Common and Azure only.
@@ -93,6 +103,7 @@ dotcom-pulumi-infrastructure/
 | `OrgContainerRegistry` | `dotcom:containers:OrgContainerRegistry` | Private Premium ACR + private endpoint + DNS |
 | `OrgContainerEnvironment` | `dotcom:compute:OrgContainerEnvironment` | Log Analytics + Container Apps environment |
 | `OrgContainerApp` | `dotcom:compute:OrgContainerApp` | App, optional UAI + AcrPull for private pulls |
+| `OrgVirtualMachine` | `dotcom:compute:OrgVirtualMachine` | Private NIC + VM, Premium OS disk, Entra SSH / AMA |
 | `OrgAppService` | — | Unimplemented placeholder |
 
 ---
@@ -280,7 +291,7 @@ dotnet nuget update source github \
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="Dotcom.Cloud.Infrastructure.Azure" Version="2.2.1" />
+  <PackageReference Include="Dotcom.Cloud.Infrastructure.Azure" Version="2.3.0" />
 </ItemGroup>
 ```
 
@@ -334,7 +345,37 @@ return await Deployment.RunAsync(() =>
 });
 ```
 
-Azure names are derived **inside** the library (`rg-dev-payments-api`, `vnet-dev-app-network`). Workload code must not invent ARM names.
+### 4. Virtual Machine (private by default)
+
+Do **not** attach a VM to `PrivateSubnetId` — that subnet is delegated to Container Apps. Use `PublicSubnetId` or a dedicated compute subnet. There is no public IP; reach the VM through Bastion or a private jump path. Linux is SSH-key only. Register `Microsoft.Compute/EncryptionAtHost` on the subscription before the first `pulumi up`.
+
+```csharp
+using Dotcom.Cloud.Infrastructure.Azure.Compute.VirtualMachine;
+
+var vm = new OrgVirtualMachine("payments-api", new OrgVirtualMachineArgs
+{
+    Environment = "dev",
+    ResourceGroup = rg,
+    SubnetId = vnet.PublicSubnetId,
+    OsType = OrgVmOsType.Linux,
+    SshPublicKey = config.Require("sshPublicKey"),
+    ExtraTags = extraTags
+});
+
+return new Dictionary<string, object?>
+{
+    ["ResourceGroupName"] = rg.Name,
+    ["VirtualNetworkName"] = vnet.VnetName,
+    ["VmPrivateIp"] = vm.PrivateIpAddress,
+    ["VmPrincipalId"] = vm.PrincipalId
+};
+```
+
+Pin `Dotcom.Cloud.Infrastructure.Azure` **2.3.0** (or later) for `OrgVirtualMachine`.
+
+Full copy-paste programs live in [`examples/`](examples/). Start with [`examples/azure-linux-vm/`](examples/azure-linux-vm/).
+
+Azure names are derived **inside** the library (`rg-dev-payments-api`, `vnet-dev-app-network`, `vm-dev-payments-api`). Workload code must not invent ARM names.
 
 ### CAF tagging contract
 
@@ -394,6 +435,32 @@ dotnet pack src/Dotcom.Cloud.Infrastructure.Azure/Dotcom.Cloud.Infrastructure.Az
 Do **not** pack AWS or GCP until those projects are implemented and `IsPackable` is set to `true`.
 
 A workload can temporarily consume `nupkgs/` via a local feed. That is for library development only. Production stacks restore from GitHub Packages.
+
+### Pack and publish to GitHub Packages
+
+Bump `Version` in [`Directory.Build.props`](Directory.Build.props) in the same change as the code. NuGet caches by version; reusing `2.3.0` after it has been pushed leaves consumers on the old bits (`--skip-duplicate` will skip the upload).
+
+**Preferred (Cloud Operations):** merge to `main`. [`.github/workflows/publish-nuget.yml`](.github/workflows/publish-nuget.yml) restores, tests, packs Common + Azure, and pushes to `https://nuget.pkg.github.com/tech-restack/index.json` with `GITHUB_TOKEN`.
+
+**Manual (break-glass, same identity that can write packages):**
+
+```bash
+dotnet test Dotcom.Cloud.slnx --configuration Release
+
+dotnet pack src/Dotcom.Cloud.Infrastructure.Common/Dotcom.Cloud.Infrastructure.Common.csproj \
+  --configuration Release -o nupkgs
+dotnet pack src/Dotcom.Cloud.Infrastructure.Azure/Dotcom.Cloud.Infrastructure.Azure.csproj \
+  --configuration Release -o nupkgs
+
+# Classic PAT: write:packages. Enable SSO → Authorize for tech-restack.
+export GITHUB_TOKEN=ghp_...
+dotnet nuget push nupkgs/*.nupkg \
+  --api-key "$GITHUB_TOKEN" \
+  --source https://nuget.pkg.github.com/tech-restack/index.json \
+  --skip-duplicate
+```
+
+Do not commit `nupkgs/` or the PAT. After a successful push, workload repos bump the `PackageReference` (for example `2.2.1` → `2.3.0`) and `dotnet restore`.
 
 ### Versioning
 

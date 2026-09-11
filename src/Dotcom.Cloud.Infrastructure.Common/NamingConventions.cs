@@ -24,5 +24,16 @@ namespace Dotcom.Cloud.Infrastructure.Common
 
             return alnum.Length <= 50 ? alnum : alnum[..50];
         }
+
+        /// <summary>
+        /// Windows ComputerName max 15 alphanumeric characters.
+        /// </summary>
+        public static string GetWindowsComputerName(string componentName, string environment)
+        {
+            var alnum = new string($"vm{environment}{componentName}".Where(char.IsLetterOrDigit).ToArray())
+                .ToLowerInvariant();
+
+            return alnum.Length <= 15 ? alnum : alnum[..15];
+        }
     }
 }
