@@ -38,7 +38,7 @@ The library is written in **C# on .NET 10.0** and published internally as **NuGe
 | Azure | Azure Blob Storage |
 | Any cloud (shared DB) | PostgreSQL |
 
-Local development and isolated tests may use the **local file backend** or **Pulumi Cloud**. Do not treat Pulumi Cloud (or any state backend) as the place teams consume `OrgResourceGroup`; that remains GitHub Packages.
+Local development and isolated tests may use the **local file backend** or **Pulumi Cloud**. Do not treat Pulumi Cloud (or any state backend) as the place teams consume `OrgResourceGroup`; that remains GitHub Packages. Create the store **before** the first `pulumi up` — see [DIY state backend bootstrap](#diy-state-backend-bootstrap).
 
 **NuGet packages**
 
@@ -117,6 +117,133 @@ Everything above, plus:
 - `write:packages` is **not** required on a developer PAT; `main` publishes via `GITHUB_TOKEN`
 
 Default Azure location in components is `southafricanorth` when `Location` is omitted.
+
+---
+
+## DIY state backend bootstrap
+
+Cloud Operations creates the state store with the **cloud CLI**, then workload teams `pulumi login` to it. Do **not** create the bucket, container, or database in the same Pulumi stack that will use it as a backend.
+
+DIY backends store JSON checkpoints. They do **not** encrypt secrets the way Pulumi Cloud does. Every stack must set a secrets provider at init time.
+
+```bash
+# Laptop / isolated test
+pulumi stack init dev --secrets-provider=passphrase
+
+# Match the cloud (preferred for shared stacks)
+pulumi stack init prod --secrets-provider="awskms://alias/pulumi-secrets?region=eu-west-1"
+pulumi stack init prod --secrets-provider="azurekeyvault://<vault>.vault.azure.net/keys/<key>"
+pulumi stack init prod --secrets-provider="gcpkms://projects/<project>/locations/<loc>/keyRings/<ring>/cryptoKeys/<key>"
+```
+
+### AWS — S3
+
+```bash
+aws s3api create-bucket \
+  --bucket org-pulumi-state-prod \
+  --region eu-west-1 \
+  --create-bucket-configuration LocationConstraint=eu-west-1
+
+aws s3api put-bucket-versioning \
+  --bucket org-pulumi-state-prod \
+  --versioning-configuration Status=Enabled
+
+aws s3api put-bucket-encryption \
+  --bucket org-pulumi-state-prod \
+  --server-side-encryption-configuration \
+  '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"}}]}'
+
+aws s3api put-public-access-block \
+  --bucket org-pulumi-state-prod \
+  --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+export AWS_PROFILE=cloudops
+pulumi login 's3://org-pulumi-state-prod?region=eu-west-1&awssdk=v2&profile=cloudops'
+```
+
+The calling identity needs `s3:ListBucket` on the bucket ARN, and `s3:GetObject` / `PutObject` / `DeleteObject` on `arn:aws:s3:::org-pulumi-state-prod/*`.
+
+### Azure — Blob Storage
+
+```bash
+az group create -n rg-prod-pulumi-state -l southafricanorth
+
+az storage account create \
+  -n stpulumistateprod \
+  -g rg-prod-pulumi-state \
+  -l southafricanorth \
+  --sku Standard_ZRS \
+  --kind StorageV2 \
+  --min-tls-version TLS1_2 \
+  --allow-blob-public-access false
+
+az storage container create \
+  --account-name stpulumistateprod \
+  --name pulumi \
+  --auth-mode login
+
+export AZURE_STORAGE_ACCOUNT=stpulumistateprod
+az login
+pulumi login 'azblob://pulumi?storage_account=stpulumistateprod'
+```
+
+The identity that runs Pulumi needs **Storage Blob Data Contributor** on the account or container. Backend auth uses `AZURE_*` (or `az login`), not `ARM_*`. Prefer Microsoft Entra over `AZURE_STORAGE_KEY` in CI.
+
+### GCP — Cloud Storage
+
+```bash
+gcloud storage buckets create gs://org-pulumi-state-prod \
+  --location=EUROPE-WEST1 \
+  --uniform-bucket-level-access \
+  --public-access-prevention
+
+gcloud storage buckets update gs://org-pulumi-state-prod --versioning
+
+gcloud auth application-default login
+pulumi login gs://org-pulumi-state-prod
+```
+
+### PostgreSQL (shared / multi-cloud)
+
+```sql
+CREATE DATABASE pulumi_state;
+CREATE ROLE pulumi_backend LOGIN PASSWORD '...';
+GRANT ALL ON DATABASE pulumi_state TO pulumi_backend;
+```
+
+```bash
+export PGHOST=pulumi-state.example.internal
+export PGPORT=5432
+export PGUSER=pulumi_backend
+export PGPASSWORD='...'          # do not put this in the login URL
+export PGDATABASE=pulumi_state
+
+pulumi login 'postgres://?sslmode=require'
+```
+
+Pulumi creates table `pulumi_state` by default. Override with `?table=<name>` if required.
+
+### Local testing
+
+```bash
+pulumi login --local                    # file://~ → ~/.pulumi
+pulumi login file:///tmp/pulumi-state   # explicit directory
+pulumi login                            # Pulumi Cloud, laptop PoC only
+```
+
+### Workload login
+
+From the stack directory, log into the backend that matches the cloud, then preview:
+
+```bash
+cd /path/to/workload
+pulumi login 'azblob://pulumi?storage_account=stpulumistateprod'
+pulumi stack init dev --secrets-provider=passphrase
+pulumi preview
+```
+
+State files live under `.pulumi/stacks/` in that backend. Locking is file-based on object storage. Cloud Operations owns backups, versioning, and who may `List`/`Get`/`Put`/`Delete`.
 
 ---
 
