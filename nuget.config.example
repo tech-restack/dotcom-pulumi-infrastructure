@@ -3,12 +3,9 @@
   Copy into a workload repo as nuget.config.
   Source is GitHub Packages for tech-restack.
 
-  Authenticate (do not commit the token):
-    export GITHUB_TOKEN=ghp_...
-    dotnet nuget update source github \
-      --username YOUR_GITHUB_USERNAME \
-      --password "$GITHUB_TOKEN" \
-      --store-password-in-clear-text
+  Authenticate with a GitHub token that has read:packages. Do not put the token in this file.
+  Command: dotnet nuget update source github with username and password from GITHUB_TOKEN,
+  and store-password-in-clear-text.
 -->
 <configuration>
   <packageSources>
